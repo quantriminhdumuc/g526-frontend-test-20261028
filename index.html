@@ -905,8 +905,13 @@ function bindEntry(){
     if(!pass){showAccessError('adminAccessError','Nhập mật khẩu Admin.');return}
     adminBtn.disabled=true;adminBtn.textContent='ĐANG XÁC THỰC...';
     try{
-      const {data,error}=await SB.rpc('admin_login',{p_password:pass});
-      if(error||!data)throw new Error('Sai mật khẩu Admin.');
+      try{sessionStorage.setItem('G526_ADMIN_LOGIN_DIAGNOSTIC',JSON.stringify({version:'g526-admin-diagnostic-v1',rpc:'admin_login',at:new Date().toISOString(),outcome:'RPC_RESULT_UNKNOWN',httpStatus:'UNKNOWN',errorCode:'UNKNOWN',dataPresent:'UNKNOWN',loginDataTruthy:'UNKNOWN'}))}catch(_diagnosticStorageError){}
+      const {data,error,status}=await SB.rpc('admin_login',{p_password:pass});
+      // Store only allowlisted diagnostics; never response content or credentials.
+      const safeCode=typeof error?.code==='string'&&/^(?:[0-9A-Z]{5}|PGRST[0-9]{3})$/.test(error.code)?error.code:'UNKNOWN';
+      try{sessionStorage.setItem('G526_ADMIN_LOGIN_DIAGNOSTIC',JSON.stringify({version:'g526-admin-diagnostic-v1',rpc:'admin_login',at:new Date().toISOString(),outcome:error?'RPC_ERROR':!data?'EMPTY_RESULT':'DATA_PRESENT',httpStatus:Number.isInteger(status)&&status>=100&&status<=599?status:'UNKNOWN',errorCode:safeCode,dataPresent:data!==null&&data!==undefined,loginDataTruthy:!!data}))}catch(_diagnosticStorageError){}
+      if(error)throw new Error('Sai mật khẩu Admin.');
+      if(!data)throw new Error('Sai mật khẩu Admin.');
       ADMIN_TOKEN=data;sessionStorage.setItem(ADMIN_TOKEN_KEY,ADMIN_TOKEN);setAccessMode('admin');session=null;sessionStorage.removeItem(SESSION_KEY);render();
     }catch(e){showAccessError('adminAccessError',e?.message==='Sai mật khẩu Admin.'?e.message:'Không đăng nhập được Admin. Kiểm tra mật khẩu hoặc mạng.');adminBtn.disabled=false;adminBtn.textContent='ĐĂNG NHẬP ADMIN'}
   };
